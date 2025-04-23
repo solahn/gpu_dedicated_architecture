@@ -59,11 +59,8 @@ void log_worker_task(gpu_task_t task, int thread_id) {
 }
 
 void* gpu_dedicated_thread(void* arg) {
-    cpu_set_t cpuset;
-    CPU_ZERO(&cpuset);
-    CPU_SET(0, &cpuset);
-    pthread_setaffinity_np(pthread_self(), sizeof(cpuset), &cpuset);
-
+    int core_id = sched_getcpu();
+    printf("GPU-dedicated thread bound to core %d\n", core_id);
     gpu_task_t current_task;
 
     while (1) {
@@ -96,8 +93,7 @@ void* gpu_dedicated_thread(void* arg) {
 void* worker_thread(void* arg) {
     int thread_id = *(int*)arg;
     int core_id = sched_getcpu();
-    printf("Worker %d bound to core %d\n", thread_id, core_id);
-
+    printf("Worker thread %d bound to core %d\n", thread_id, core_id);
 
     for (int i = 0; i < TASKS_PER_WORKER; i++) {
         gpu_task_t task;
@@ -159,15 +155,17 @@ int main() {
     fprintf(fp_worker, "thread_id,worker_start_time,worker_request_time,worker_receive_time,worker_end_time\n");
 
     pthread_create(&gpu_thread, NULL, gpu_dedicated_thread, NULL);
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    CPU_SET(0, &cpuset); // 코어 0은 GPU 스레드용으로 예약
+    pthread_setaffinity_np(gpu_thread, sizeof(cpuset), &cpuset);
 
     for (int i = 0; i < num_workers; i++) {
         thread_ids[i] = i + 1;
         pthread_create(&workers[i], NULL, worker_thread, &thread_ids[i]);
         cpu_set_t cpuset;
         CPU_ZERO(&cpuset);
-        // 코어 0은 GPU 스레드용으로 예약
-        // 1부터 available_cores까지 사용
-        int core_id = 1 + (i % (available_cores - 1));
+        int core_id = 1 + (i % (available_cores - 1)); // 1부터 available_cores까지 사용
         CPU_SET(core_id, &cpuset);
         pthread_setaffinity_np(workers[i], sizeof(cpuset), &cpuset);
     }

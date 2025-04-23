@@ -2,7 +2,13 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import matplotlib.patches as patches
 
-NUM_WORKERS = 12
+import multiprocessing
+
+# 사용 가능한 CPU 코어 수 확인
+available_cores = multiprocessing.cpu_count()
+
+# GPU 스레드용 코어 1개 제외
+num_workers = available_cores - 1
 
 # CSV 파일 로드
 gpu_df = pd.read_csv('gpu_task_log.csv')
@@ -75,8 +81,8 @@ ax.set_ylabel('Thread')
 ax.set_title('Thread Execution Timeline')
 
 # 스레드 번호 설정 (위에서부터 GPU 전담(0), Worker(1~12))
-ax.set_yticks(range(0, NUM_WORKERS + 1))
-ax.set_yticklabels(['GPU'] + [f'Worker {i}' for i in range(1, NUM_WORKERS + 1)])
+ax.set_yticks(range(0, num_workers + 1))
+ax.set_yticklabels(['GPU'] + [f'Worker {i}' for i in range(1, num_workers + 1)])
 
 # y축을 뒤집어서 0번(GPU)이 맨 위로 가도록 설정
 ax.invert_yaxis()
@@ -85,7 +91,7 @@ ax.grid(True, linestyle='--', alpha=0.5)
 ax.legend(loc='upper right')
 
 plt.xlim(0, total_delay)
-plt.ylim(NUM_WORKERS+1, 0-1)
+plt.ylim(num_workers+1, 0-1)
 plt.tight_layout()
 
 # GUI 없이 이미지 저장
