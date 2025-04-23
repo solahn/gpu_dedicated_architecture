@@ -43,18 +43,21 @@ double current_time_in_ms() {
     return ts.tv_sec * 1000.0 + ts.tv_nsec / 1e6;
 }
 
+// GPU 작업 로그
 void log_gpu_task(gpu_task_t task, int thread_id) {
     pthread_mutex_lock(&file_mutex);
     fprintf(fp_gpu, "%d,%.2f,%.2f,%.2f\n", thread_id, task.request_time, task.gpu_start_time, task.gpu_end_time);
     pthread_mutex_unlock(&file_mutex);
 }
 
+// Worker 작업 로그
 void log_worker_task(gpu_task_t task, int thread_id) {
     pthread_mutex_lock(&file_mutex);
     fprintf(fp_worker, "%d,%.2f,%.2f,%.2f,%.2f\n", thread_id, task.worker_start_time, task.worker_request_time, task.worker_receive_time, task.worker_end_time);
     pthread_mutex_unlock(&file_mutex);
 }
 
+// GPU 전담 스레드 (Core 0)
 void* gpu_dedicated_thread(void* arg) {
     cpu_set_t cpuset;
     CPU_ZERO(&cpuset);
@@ -64,6 +67,7 @@ void* gpu_dedicated_thread(void* arg) {
     gpu_task_t current_task;
 
     while (1) {
+        // 작업 대기열에서 작업 수신
         pthread_mutex_lock(&task_mutex);
         while (task_head == task_tail)
             pthread_cond_wait(&task_cond, &task_mutex);
@@ -72,9 +76,13 @@ void* gpu_dedicated_thread(void* arg) {
         task_head++;
         pthread_mutex_unlock(&task_mutex);
 
+        printf("GPU Thread: Received task %d\n", current_task.task_id);
+
         current_task.gpu_start_time = current_time_in_ms();
-        usleep(1000);
+        printf("GPU Thread: Start GPU task %d\n", current_task.task_id);
+        usleep(1000); // GPU 작업 모의
         current_task.gpu_end_time = current_time_in_ms();
+        printf("GPU Thread: End GPU task %d\n", current_task.task_id);
 
         pthread_mutex_lock(&result_mutex[current_task.task_id]);
         current_task.completed = 1;
@@ -86,6 +94,7 @@ void* gpu_dedicated_thread(void* arg) {
     }
 }
 
+// Worker 스레드 (Core 1~12)
 void* worker_thread(void* arg) {
     int thread_id = *(int*)arg;
 
@@ -104,6 +113,7 @@ void* worker_thread(void* arg) {
     pthread_cond_init(&result_cond[thread_id], NULL);
 
     task.worker_start_time = current_time_in_ms();
+    printf("Worker %d: Start preprocessing\n", thread_id);
     usleep(500);
 
     pthread_mutex_lock(&task_mutex);
@@ -115,14 +125,19 @@ void* worker_thread(void* arg) {
     pthread_cond_signal(&task_cond);
     pthread_mutex_unlock(&task_mutex);
 
+    printf("Worker %d: Requested GPU task\n", thread_id);
+
     pthread_mutex_lock(&result_mutex[task.task_id]);
     while (!task_queue[task.task_id].completed)
         pthread_cond_wait(&result_cond[task.task_id], &result_mutex[task.task_id]);
     pthread_mutex_unlock(&result_mutex[task.task_id]);
 
     task.worker_receive_time = current_time_in_ms();
+    printf("Worker %d: Received GPU result\n", thread_id);
+
     usleep(500);
     task.worker_end_time = current_time_in_ms();
+    printf("Worker %d: Finished postprocessing\n", thread_id);
 
     log_worker_task(task, thread_id);
 

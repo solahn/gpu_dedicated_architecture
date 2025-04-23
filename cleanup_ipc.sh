@@ -1,0 +1,1 @@
+ipcs | grep $(whoami) | awk '{print $2}' | xargs -I{} ipcrm -s {} -m {} -q {}
