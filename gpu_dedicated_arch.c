@@ -92,10 +92,11 @@ void* gpu_dedicated_thread(void* arg) {
 }
 
 void* worker_thread(void* arg) {
+    pthread_barrier_wait(&start_barrier);
+
     int thread_id = *(int*)arg;
     int core_id = sched_getcpu();
     printf("Worker thread %d bound to core %d\n", thread_id, core_id);
-    pthread_barrier_wait(&start_barrier);
 
     for (int i = 0; i < TASKS_PER_WORKER; i++) {
         gpu_task_t task;
