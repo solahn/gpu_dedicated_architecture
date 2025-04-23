@@ -26,6 +26,13 @@ worker_df[['worker_start_time', 'worker_request_time', 'worker_receive_time', 'w
 
 fig, ax = plt.subplots(figsize=(12, 8))
 
+# GPU 스레드 시작 및 종료 시점에 세로 점선 추가
+for idx, row in gpu_df.iterrows():
+    # GPU 시작 시점에 세로 회색 점선
+    ax.axvline(x=row['gpu_start_time'], color='gray', linestyle='--', alpha=0.5, zorder = -100)
+    # GPU 종료 시점에 세로 회색 점선
+    ax.axvline(x=row['gpu_end_time'], color='gray', linestyle='--', alpha=0.5, zorder = -100)
+
 # GPU 전담 스레드 (y=0, 가장 위에)
 for idx, row in gpu_df.iterrows():
     ax.add_patch(patches.Rectangle(
@@ -58,9 +65,9 @@ for idx, row in worker_df.iterrows():
         (row['worker_request_time'], tid - 0.3),
         row['worker_receive_time'] - row['worker_request_time'],
         0.6,
-        edgecolor='red',
-        facecolor='pink',
-        alpha=0.7,
+        edgecolor='grey',
+        facecolor='grey',
+        alpha=0.2,
         label='Waiting GPU' if idx == 0 else ""
     ))
 
@@ -87,7 +94,7 @@ ax.set_yticklabels(['GPU'] + [f'Worker {i}' for i in range(1, num_workers + 1)])
 # y축을 뒤집어서 0번(GPU)이 맨 위로 가도록 설정
 ax.invert_yaxis()
 
-ax.grid(True, linestyle='--', alpha=0.5)
+# ax.grid(True, linestyle='--', alpha=0.5)
 ax.legend(loc='upper right')
 
 plt.xlim(0, total_delay)

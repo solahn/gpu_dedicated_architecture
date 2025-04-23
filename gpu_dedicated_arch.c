@@ -13,6 +13,7 @@
 
 pthread_mutex_t task_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t task_cond = PTHREAD_COND_INITIALIZER;
+pthread_barrier_t start_barrier;
 
 pthread_mutex_t result_mutex[MAX_QUEUE_SIZE];
 pthread_cond_t result_cond[MAX_QUEUE_SIZE];
@@ -94,6 +95,7 @@ void* worker_thread(void* arg) {
     int thread_id = *(int*)arg;
     int core_id = sched_getcpu();
     printf("Worker thread %d bound to core %d\n", thread_id, core_id);
+    pthread_barrier_wait(&start_barrier);
 
     for (int i = 0; i < TASKS_PER_WORKER; i++) {
         gpu_task_t task;
@@ -144,7 +146,6 @@ int main() {
     available_cores = sysconf(_SC_NPROCESSORS_ONLN);
     int num_workers = available_cores - 1; // GPU 스레드용 코어 1개 제외
 
-
     pthread_t gpu_thread, workers[num_workers];
     int thread_ids[num_workers];
 
@@ -153,6 +154,8 @@ int main() {
 
     fp_worker = fopen("worker_task_log.csv", "w");
     fprintf(fp_worker, "thread_id,worker_start_time,worker_request_time,worker_receive_time,worker_end_time\n");
+
+    pthread_barrier_init(&start_barrier, NULL, num_workers);
 
     pthread_create(&gpu_thread, NULL, gpu_dedicated_thread, NULL);
     cpu_set_t cpuset;
@@ -179,6 +182,8 @@ int main() {
 
     fclose(fp_gpu);
     fclose(fp_worker);
+
+    pthread_barrier_destroy(&start_barrier);
 
     return 0;
 }
