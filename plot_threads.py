@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import matplotlib.pyplot as plt
 import pandas as pd
 import matplotlib.patches as patches
@@ -19,6 +21,10 @@ base_time = worker_df['worker_start_time'].iloc[0]
 
 # 전체 실행 시간 (가장 마지막 worker의 종료 시간 - 기준 시간)
 total_delay = worker_df['worker_end_time'].iloc[-1] - base_time
+
+# ✅ available_cores 번째 행부터 시작하도록 슬라이싱 (첫번째 결과는 버림, xlim 조정)
+slice_base = available_cores * 5
+slice_start_time = worker_df['worker_start_time'].iloc[slice_base] - base_time
 
 # 기준 시간으로부터 상대 시간 계산
 gpu_df[['request_time', 'gpu_start_time', 'gpu_end_time']] -= base_time
@@ -97,7 +103,7 @@ ax.invert_yaxis()
 # ax.grid(True, linestyle='--', alpha=0.5)
 ax.legend(loc='upper right')
 
-plt.xlim(0, total_delay)
+plt.xlim(slice_start_time, total_delay)
 plt.ylim(num_workers+1, 0-1)
 plt.tight_layout()
 
