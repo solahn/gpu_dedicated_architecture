@@ -6,15 +6,21 @@ import matplotlib.patches as patches
 
 import multiprocessing
 
-# 사용 가능한 CPU 코어 수 확인
-available_cores = multiprocessing.cpu_count()
-
 # GPU 스레드용 코어 1개 제외
-num_workers = available_cores - 1
+num_workers = 11
 
 # CSV 파일 로드
-gpu_df = pd.read_csv('gpu_task_log.csv')
-worker_df = pd.read_csv('worker_task_log.csv')
+# gpu_df = pd.read_csv('gpu_task_log.csv')
+# worker_df = pd.read_csv('worker_task_log.csv')
+gpu_df = pd.read_csv('gpu_task_log_G0_306.csv')
+worker_df = pd.read_csv('worker_task_log_G0_306.csv')
+
+# 제외할 앞뒤 행 개수
+cut = 5 * num_workers
+
+# 앞뒤 cut개 제외
+gpu_df = gpu_df.iloc[cut:-cut].reset_index(drop=True)
+worker_df = worker_df.iloc[cut:-cut].reset_index(drop=True)
 
 # 기준 시간 (첫 번째 worker의 시작 시간)
 base_time = worker_df['worker_start_time'].iloc[0]
@@ -22,12 +28,7 @@ base_time = worker_df['worker_start_time'].iloc[0]
 # 전체 실행 시간 (가장 마지막 worker의 종료 시간 - 기준 시간)
 total_delay = worker_df['worker_end_time'].iloc[-1] - base_time
 
-# ✅ available_cores 번째 행부터 시작하도록 슬라이싱 (첫번째 결과는 버림, xlim 조정)
-slice_base = available_cores * 5
-slice_start_time = worker_df['worker_start_time'].iloc[slice_base] - base_time
-
 # 기준 시간으로부터 상대 시간 계산
-# ✅ GPU DataFrame 상대 시간 변환 (중요!)
 gpu_df[['request_time', 'gpu_start_time', 'gpu_end_time',
         'push_start_time', 'push_end_time', 
         'pull_start_time', 'pull_end_time']] -= base_time
@@ -132,7 +133,7 @@ ax.invert_yaxis()
 # ax.grid(True, linestyle='--', alpha=0.5)
 ax.legend(loc='upper right')
 
-ax.set_xlim(slice_start_time, total_delay)
+ax.set_xlim(0, total_delay)
 ax.set_ylim(num_workers + 2, -1)  # GPU(0) 가장 위
 plt.tight_layout()
 
